@@ -72,7 +72,7 @@
         }
         
         #serverScreen {
-            display: none;
+            display: none; /* Removed - no longer used */
         }
         
         .server-item {
@@ -112,34 +112,17 @@
             <p>MVP - Movement Only</p>
             
             <div>
-                <button onclick="connectWallet('phantom')">👻 Phantom</button>
-                <button onclick="connectWallet('solflare')">☀️ Solflare</button>
-                <button onclick="connectWallet('local')">🌐 Local</button>
+                <button onclick="connectWallet('local')">🌐 Connect Wallet</button>
             </div>
             
             <div id="walletInfo" style="margin-top: 20px; display: none;">
                 <p>Connected: <span id="walletAddress"></span></p>
-                <button onclick="showServerScreen()">Choose Server</button>
+                <button onclick="joinServer()">Enter Game</button>
             </div>
         </div>
     </div>
 
-    <!-- Server Selection -->
-    <div id="serverScreen">
-        <div class="card">
-            <h2>Select Server</h2>
-            <div>
-                <button class="server-item" onclick="selectServer('localhost')">
-                    🏠 Local Server (localhost:3000)
-                </button>
-                <button class="server-item" onclick="selectServer('demo')">
-                    🌐 Demo Server (demo.example.com)
-                </button>
-            </div>
-            <button id="joinBtn" onclick="joinServer()" disabled>Join Server</button>
-            <button onclick="showLoginScreen()">Back</button>
-        </div>
-    </div>
+    <!-- Server Selection - REMOVED -->
 
     <!-- Game -->
     <canvas id="gameCanvas"></canvas>
@@ -166,29 +149,15 @@
         const config = {
             playerSize: 32,
             playerSpeed: 4,
-            servers: {
-                localhost: 'ws://localhost:3000',
-                demo: 'wss://solmmo.onrender.com'
-            }
+            serverUrl: 'wss://solmmo.onrender.com'
         };
 
         // === WALLET FUNCTIONS ===
         async function connectWallet(type) {
             try {
-                let address;
-                
-                if (type === 'phantom' && window.solana?.isPhantom) {
-                    const response = await window.solana.connect();
-                    address = response.publicKey.toString();
-                } else if (type === 'solflare' && window.solflare?.isSolflare) {
-                    const response = await window.solflare.connect();
-                    address = response.publicKey.toString();
-                } else if (type === 'local') {
-                    const keypair = solanaWeb3.Keypair.generate();
-                    address = keypair.publicKey.toString();
-                } else {
-                    throw new Error(`${type} wallet not available`);
-                }
+                // Always use local wallet for simplicity
+                const keypair = solanaWeb3.Keypair.generate();
+                const address = keypair.publicKey.toString();
                 
                 gameState.walletAddress = address;
                 document.getElementById('walletAddress').textContent = 
@@ -200,24 +169,10 @@
             }
         }
 
-        // === SERVER SELECTION ===
-        function selectServer(serverType) {
-            // Clear previous selection
-            document.querySelectorAll('.server-item').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            
-            // Select new server
-            event.target.classList.add('selected');
-            gameState.selectedServer = serverType;
-            document.getElementById('joinBtn').disabled = false;
-        }
-
+        // === SERVER CONNECTION ===
         async function joinServer() {
-            const serverUrl = config.servers[gameState.selectedServer];
-            
             try {
-                gameState.socket = new WebSocket(serverUrl);
+                gameState.socket = new WebSocket(config.serverUrl);
                 
                 gameState.socket.onopen = () => {
                     gameState.isConnected = true;
@@ -257,6 +212,19 @@
 
         function handleServerMessage(data) {
             switch (data.type) {
+                case 'existingPlayers':
+                    // Load all existing players when joining
+                    data.players.forEach(playerData => {
+                        gameState.players.set(playerData.playerId, {
+                            x: playerData.x,
+                            y: playerData.y,
+                            color: playerData.color
+                        });
+                    });
+                    updatePlayerCount();
+                    console.log(`Loaded ${data.players.length} existing players`);
+                    break;
+                    
                 case 'playerJoined':
                     gameState.players.set(data.playerId, {
                         x: data.x,
@@ -289,13 +257,13 @@
         let canvas, ctx;
 
         function startGame() {
-            // Hide screens
-            document.getElementById('serverScreen').style.display = 'none';
+            // Hide login screen
+            document.getElementById('loginScreen').style.display = 'none';
             
             // Show game
             document.getElementById('gameCanvas').style.display = 'block';
             document.getElementById('gameUI').style.display = 'block';
-            document.getElementById('serverInfo').textContent = gameState.selectedServer;
+            document.getElementById('serverInfo').textContent = 'SolMMO Server';
             
             // Setup canvas
             canvas = document.getElementById('gameCanvas');
@@ -386,16 +354,8 @@
             );
         }
 
-        // === SCREEN NAVIGATION ===
-        function showServerScreen() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('serverScreen').style.display = 'flex';
-        }
-
-        function showLoginScreen() {
-            document.getElementById('serverScreen').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
-        }
+        // === REMOVED SCREEN NAVIGATION ===
+        // Everything goes directly from login to game now
     </script>
 </body>
 </html>
