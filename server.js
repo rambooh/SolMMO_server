@@ -52,6 +52,27 @@ wss.on('connection', (ws) => {
                     
                     console.log(`Player joined: ${playerId} (${players.size} total)`);
                     
+                    // Send existing players to new player
+                    const existingPlayers = [];
+                    players.forEach((player, id) => {
+                        if (id !== playerId) {
+                            existingPlayers.push({
+                                playerId: id,
+                                x: player.x,
+                                y: player.y,
+                                color: player.color
+                            });
+                        }
+                    });
+                    
+                    // Send all existing players to the new player
+                    if (existingPlayers.length > 0) {
+                        ws.send(JSON.stringify({
+                            type: 'existingPlayers',
+                            players: existingPlayers
+                        }));
+                    }
+                    
                     // Tell other players about new player
                     broadcast({
                         type: 'playerJoined',
