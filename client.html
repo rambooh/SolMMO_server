@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular MMO - MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #2a2a2a;
+            color: white;
+        }
+        
+        #loginScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #serverScreen {
+            display: none;
+        }
+        
+        .server-item {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            text-align: left;
+        }
+        
+        .server-item.selected {
+            background: rgba(78, 205, 196, 0.3);
+        }
+        
+        #gameCanvas {
+            display: none;
+            background: #47aba9;
+        }
+        
+        #gameUI {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="card">
+            <h1>Modular MMO</h1>
+            <p>MVP - Movement Only</p>
+            
+            <div>
+                <button onclick="connectWallet('phantom')">👻 Phantom</button>
+                <button onclick="connectWallet('solflare')">☀️ Solflare</button>
+                <button onclick="connectWallet('local')">🌐 Local</button>
+            </div>
+            
+            <div id="walletInfo" style="margin-top: 20px; display: none;">
+                <p>Connected: <span id="walletAddress"></span></p>
+                <button onclick="showServerScreen()">Choose Server</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Selection -->
+    <div id="serverScreen">
+        <div class="card">
+            <h2>Select Server</h2>
+            <div>
+                <button class="server-item" onclick="selectServer('localhost')">
+                    🏠 Local Server (localhost:3000)
+                </button>
+                <button class="server-item" onclick="selectServer('demo')">
+                    🌐 Demo Server (demo.example.com)
+                </button>
+            </div>
+            <button id="joinBtn" onclick="joinServer()" disabled>Join Server</button>
+            <button onclick="showLoginScreen()">Back</button>
+        </div>
+    </div>
+
+    <!-- Game -->
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameUI">
+        <div>Server: <span id="serverInfo">-</span></div>
+        <div>Players: <span id="playerCount">1</span></div>
+        <div>Use WASD or Arrow Keys to move</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.73.3/lib/index.iife.min.js"></script>
+    <script>
+        // === GAME STATE ===
+        let gameState = {
+            wallet: null,
+            walletAddress: null,
+            selectedServer: null,
+            socket: null,
+            isConnected: false,
+            players: new Map(),
+            myPlayer: { x: 400, y: 300 }
+        };
+
+        // === CONFIG ===
+        const config = {
+            playerSize: 32,
+            playerSpeed: 4,
+            servers: {
+                localhost: 'ws://localhost:3000',
+                demo: 'wss://demo.example.com'
+            }
+        };
+
+        // === WALLET FUNCTIONS ===
+        async function connectWallet(type) {
+            try {
+                let address;
+                
+                if (type === 'phantom' && window.solana?.isPhantom) {
+                    const response = await window.solana.connect();
+                    address = response.publicKey.toString();
+                } else if (type === 'solflare' && window.solflare?.isSolflare) {
+                    const response = await window.solflare.connect();
+                    address = response.publicKey.toString();
+                } else if (type === 'local') {
+                    const keypair = solanaWeb3.Keypair.generate();
+                    address = keypair.publicKey.toString();
+                } else {
+                    throw new Error(`${type} wallet not available`);
+                }
+                
+                gameState.walletAddress = address;
+                document.getElementById('walletAddress').textContent = 
+                    address.slice(0, 4) + '...' + address.slice(-4);
+                document.getElementById('walletInfo').style.display = 'block';
+                
+            } catch (error) {
+                alert('Wallet connection failed: ' + error.message);
+            }
+        }
+
+        // === SERVER SELECTION ===
+        function selectServer(serverType) {
+            // Clear previous selection
+            document.querySelectorAll('.server-item').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Select new server
+            event.target.classList.add('selected');
+            gameState.selectedServer = serverType;
+            document.getElementById('joinBtn').disabled = false;
+        }
+
+        async function joinServer() {
+            const serverUrl = config.servers[gameState.selectedServer];
+            
+            try {
+                gameState.socket = new WebSocket(serverUrl);
+                
+                gameState.socket.onopen = () => {
+                    gameState.isConnected = true;
+                    
+                    // Send join message
+                    send({
+                        type: 'join',
+                        playerId: gameState.walletAddress,
+                        x: gameState.myPlayer.x,
+                        y: gameState.myPlayer.y
+                    });
+                    
+                    startGame();
+                };
+                
+                gameState.socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                };
+                
+                gameState.socket.onclose = () => {
+                    gameState.isConnected = false;
+                    alert('Disconnected from server');
+                };
+                
+            } catch (error) {
+                alert('Failed to connect: ' + error.message);
+            }
+        }
+
+        // === NETWORK ===
+        function send(data) {
+            if (gameState.socket && gameState.socket.readyState === WebSocket.OPEN) {
+                gameState.socket.send(JSON.stringify(data));
+            }
+        }
+
+        function handleServerMessage(data) {
+            switch (data.type) {
+                case 'playerJoined':
+                    gameState.players.set(data.playerId, {
+                        x: data.x,
+                        y: data.y,
+                        color: data.color || '#4ecdc4'
+                    });
+                    updatePlayerCount();
+                    break;
+                    
+                case 'playerMoved':
+                    if (gameState.players.has(data.playerId)) {
+                        gameState.players.get(data.playerId).x = data.x;
+                        gameState.players.get(data.playerId).y = data.y;
+                    }
+                    break;
+                    
+                case 'playerLeft':
+                    gameState.players.delete(data.playerId);
+                    updatePlayerCount();
+                    break;
+            }
+        }
+
+        function updatePlayerCount() {
+            document.getElementById('playerCount').textContent = gameState.players.size + 1;
+        }
+
+        // === GAME LOGIC ===
+        let keys = {};
+        let canvas, ctx;
+
+        function startGame() {
+            // Hide screens
+            document.getElementById('serverScreen').style.display = 'none';
+            
+            // Show game
+            document.getElementById('gameCanvas').style.display = 'block';
+            document.getElementById('gameUI').style.display = 'block';
+            document.getElementById('serverInfo').textContent = gameState.selectedServer;
+            
+            // Setup canvas
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Input handling
+            window.addEventListener('keydown', (e) => keys[e.key] = true);
+            window.addEventListener('keyup', (e) => keys[e.key] = false);
+            
+            // Start game loop
+            gameLoop();
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            let moved = false;
+            const oldX = gameState.myPlayer.x;
+            const oldY = gameState.myPlayer.y;
+            
+            // Movement
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+                gameState.myPlayer.y = Math.max(config.playerSize/2, gameState.myPlayer.y - config.playerSpeed);
+                moved = true;
+            }
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+                gameState.myPlayer.y = Math.min(canvas.height - config.playerSize/2, gameState.myPlayer.y + config.playerSpeed);
+                moved = true;
+            }
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                gameState.myPlayer.x = Math.max(config.playerSize/2, gameState.myPlayer.x - config.playerSpeed);
+                moved = true;
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                gameState.myPlayer.x = Math.min(canvas.width - config.playerSize/2, gameState.myPlayer.x + config.playerSpeed);
+                moved = true;
+            }
+            
+            // Send movement to server
+            if (moved && gameState.isConnected) {
+                send({
+                    type: 'move',
+                    x: gameState.myPlayer.x,
+                    y: gameState.myPlayer.y
+                });
+            }
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#47aba9';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw other players
+            gameState.players.forEach(player => {
+                ctx.fillStyle = player.color;
+                ctx.fillRect(
+                    player.x - config.playerSize/2,
+                    player.y - config.playerSize/2,
+                    config.playerSize,
+                    config.playerSize
+                );
+            });
+            
+            // Draw my player
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(
+                gameState.myPlayer.x - config.playerSize/2,
+                gameState.myPlayer.y - config.playerSize/2,
+                config.playerSize,
+                config.playerSize
+            );
+            
+            // Draw border around my player
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
+                gameState.myPlayer.x - config.playerSize/2,
+                gameState.myPlayer.y - config.playerSize/2,
+                config.playerSize,
+                config.playerSize
+            );
+        }
+
+        // === SCREEN NAVIGATION ===
+        function showServerScreen() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('serverScreen').style.display = 'flex';
+        }
+
+        function showLoginScreen() {
+            document.getElementById('serverScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
