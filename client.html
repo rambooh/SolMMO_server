@@ -255,6 +255,7 @@
         // === GAME LOGIC ===
         let keys = {};
         let canvas, ctx;
+        let lastTime = 0;
 
         function startGame() {
             // Hide login screen
@@ -275,36 +276,42 @@
             window.addEventListener('keydown', (e) => keys[e.key] = true);
             window.addEventListener('keyup', (e) => keys[e.key] = false);
             
-            // Start game loop
-            gameLoop();
+            // Start game loop with timestamp
+            lastTime = performance.now();
+            gameLoop(lastTime);
         }
 
-        function gameLoop() {
-            update();
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+            lastTime = currentTime;
+            
+            update(deltaTime);
             render();
             requestAnimationFrame(gameLoop);
         }
 
-        function update() {
+        function update(deltaTime) {
             let moved = false;
             const oldX = gameState.myPlayer.x;
             const oldY = gameState.myPlayer.y;
             
-            // Movement
+            // Movement with delta time (pixels per second, not per frame)
+            const moveSpeed = config.playerSpeed * 60; // 240 pixels per second
+            
             if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-                gameState.myPlayer.y = Math.max(config.playerSize/2, gameState.myPlayer.y - config.playerSpeed);
+                gameState.myPlayer.y = Math.max(config.playerSize/2, gameState.myPlayer.y - moveSpeed * deltaTime);
                 moved = true;
             }
             if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-                gameState.myPlayer.y = Math.min(canvas.height - config.playerSize/2, gameState.myPlayer.y + config.playerSpeed);
+                gameState.myPlayer.y = Math.min(canvas.height - config.playerSize/2, gameState.myPlayer.y + moveSpeed * deltaTime);
                 moved = true;
             }
             if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-                gameState.myPlayer.x = Math.max(config.playerSize/2, gameState.myPlayer.x - config.playerSpeed);
+                gameState.myPlayer.x = Math.max(config.playerSize/2, gameState.myPlayer.x - moveSpeed * deltaTime);
                 moved = true;
             }
             if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-                gameState.myPlayer.x = Math.min(canvas.width - config.playerSize/2, gameState.myPlayer.x + config.playerSpeed);
+                gameState.myPlayer.x = Math.min(canvas.width - config.playerSize/2, gameState.myPlayer.x + moveSpeed * deltaTime);
                 moved = true;
             }
             
