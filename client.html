@@ -330,35 +330,22 @@
             ctx.fillStyle = '#47aba9';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw other players
+            // Setup emoji rendering
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            
+            // Draw other players as different emojis
+            const playerEmojis = ['🐸', '🦄', '🐉', '👽', '🤖', '👾'];
+            let emojiIndex = 0;
+            
             gameState.players.forEach(player => {
-                ctx.fillStyle = player.color;
-                ctx.fillRect(
-                    player.x - config.playerSize/2,
-                    player.y - config.playerSize/2,
-                    config.playerSize,
-                    config.playerSize
-                );
+                const emoji = playerEmojis[emojiIndex % playerEmojis.length];
+                ctx.fillText(emoji, player.x, player.y + 8);
+                emojiIndex++;
             });
             
-            // Draw my player
-            ctx.fillStyle = '#ff6b6b';
-            ctx.fillRect(
-                gameState.myPlayer.x - config.playerSize/2,
-                gameState.myPlayer.y - config.playerSize/2,
-                config.playerSize,
-                config.playerSize
-            );
-            
-            // Draw border around my player
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(
-                gameState.myPlayer.x - config.playerSize/2,
-                gameState.myPlayer.y - config.playerSize/2,
-                config.playerSize,
-                config.playerSize
-            );
+            // Draw my player as a red wizard
+            ctx.fillText('🔥', gameState.myPlayer.x, gameState.myPlayer.y + 8);
         }
 
         // === REMOVED SCREEN NAVIGATION ===
