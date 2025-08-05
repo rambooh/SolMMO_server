@@ -142,7 +142,8 @@
             socket: null,
             isConnected: false,
             players: new Map(),
-            myPlayer: { x: 400, y: 300 }
+            myPlayer: { x: 400, y: 300 },
+            myEmoji: '🔥' // Will be set by server
         };
 
         // === CONFIG ===
@@ -218,7 +219,8 @@
                         gameState.players.set(playerData.playerId, {
                             x: playerData.x,
                             y: playerData.y,
-                            color: playerData.color
+                            color: playerData.color,
+                            emoji: playerData.emoji
                         });
                     });
                     updatePlayerCount();
@@ -226,11 +228,18 @@
                     break;
                     
                 case 'playerJoined':
-                    gameState.players.set(data.playerId, {
-                        x: data.x,
-                        y: data.y,
-                        color: data.color || '#4ecdc4'
-                    });
+                    // Check if this is me joining (to get my emoji)
+                    if (data.playerId === gameState.walletAddress) {
+                        gameState.myEmoji = data.emoji;
+                        console.log(`My emoji: ${data.emoji}`);
+                    } else {
+                        gameState.players.set(data.playerId, {
+                            x: data.x,
+                            y: data.y,
+                            color: data.color || '#4ecdc4',
+                            emoji: data.emoji
+                        });
+                    }
                     updatePlayerCount();
                     break;
                     
@@ -334,18 +343,13 @@
             ctx.font = '24px Arial';
             ctx.textAlign = 'center';
             
-            // Draw other players as different emojis
-            const playerEmojis = ['🐸', '🦄', '🐉', '👽', '🤖', '👾'];
-            let emojiIndex = 0;
-            
+            // Draw other players with their assigned emojis
             gameState.players.forEach(player => {
-                const emoji = playerEmojis[emojiIndex % playerEmojis.length];
-                ctx.fillText(emoji, player.x, player.y + 8);
-                emojiIndex++;
+                ctx.fillText(player.emoji, player.x, player.y + 8);
             });
             
-            // Draw my player as a red wizard
-            ctx.fillText('🔥', gameState.myPlayer.x, gameState.myPlayer.y + 8);
+            // Draw my player with my assigned emoji
+            ctx.fillText(gameState.myEmoji, gameState.myPlayer.x, gameState.myPlayer.y + 8);
         }
 
         // === REMOVED SCREEN NAVIGATION ===
