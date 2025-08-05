@@ -6,10 +6,25 @@ const cors = require('cors');
 // === CONFIG ===
 const PORT = process.env.PORT || 3000;
 const PLAYER_COLORS = ['#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#ff9ff3'];
+const PLAYER_EMOJIS = ['🐸', '🦄', '🐉', '👽', '🤖', '👾'];
 
 // === GAME STATE ===
 let players = new Map();
 let colorIndex = 0;
+
+// Helper function to generate consistent emoji from player ID
+function getPlayerEmoji(playerId) {
+    // Create a simple hash from the player ID
+    let hash = 0;
+    for (let i = 0; i < playerId.length; i++) {
+        const char = playerId.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    // Use absolute value and modulo to get consistent index
+    const emojiIndex = Math.abs(hash) % PLAYER_EMOJIS.length;
+    return PLAYER_EMOJIS[emojiIndex];
+}
 
 // === SETUP SERVER ===
 const app = express();
@@ -46,11 +61,12 @@ wss.on('connection', (ws) => {
                         x: data.x || 400,
                         y: data.y || 300,
                         color: PLAYER_COLORS[colorIndex % PLAYER_COLORS.length],
+                        emoji: getPlayerEmoji(playerId), // Consistent emoji based on ID
                         socket: ws
                     });
                     colorIndex++;
                     
-                    console.log(`Player joined: ${playerId} (${players.size} total)`);
+                    console.log(`Player joined: ${playerId} (${players.size} total) - ${players.get(playerId).emoji}`);
                     
                     // Send existing players to new player
                     const existingPlayers = [];
@@ -60,7 +76,8 @@ wss.on('connection', (ws) => {
                                 playerId: id,
                                 x: player.x,
                                 y: player.y,
-                                color: player.color
+                                color: player.color,
+                                emoji: player.emoji
                             });
                         }
                     });
@@ -79,7 +96,8 @@ wss.on('connection', (ws) => {
                         playerId: playerId,
                         x: players.get(playerId).x,
                         y: players.get(playerId).y,
-                        color: players.get(playerId).color
+                        color: players.get(playerId).color,
+                        emoji: players.get(playerId).emoji
                     }, playerId);
                     
                     break;
