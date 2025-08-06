@@ -114,7 +114,8 @@ wss.on('connection', (ws) => {
                             playerId: playerId,
                             x: data.x,
                             y: data.y,
-                            isMoving: data.isMoving || false
+                            isMoving: data.isMoving || false,
+                            facingLeft: data.facingLeft || false
                         }, playerId);
                     }
                     break;
