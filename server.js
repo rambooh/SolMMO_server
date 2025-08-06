@@ -104,7 +104,7 @@ wss.on('connection', (ws) => {
                     
                 case 'move':
                     if (playerId && players.has(playerId)) {
-                        // Update player position
+                        // Update player position and movement state
                         players.get(playerId).x = data.x;
                         players.get(playerId).y = data.y;
                         
@@ -113,7 +113,8 @@ wss.on('connection', (ws) => {
                             type: 'playerMoved',
                             playerId: playerId,
                             x: data.x,
-                            y: data.y
+                            y: data.y,
+                            isMoving: data.isMoving || false
                         }, playerId);
                     }
                     break;
