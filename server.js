@@ -104,9 +104,16 @@ wss.on('connection', (ws) => {
                     
                 case 'move':
                     if (playerId && players.has(playerId)) {
+                        const player = players.get(playerId);
+                        const oldX = player.x;
+                        const oldY = player.y;
+                        
                         // Update player position and movement state
-                        players.get(playerId).x = data.x;
-                        players.get(playerId).y = data.y;
+                        player.x = data.x;
+                        player.y = data.y;
+                        
+                        // Determine if player is actually moving by comparing positions
+                        const actuallyMoving = (Math.abs(data.x - oldX) > 0.1 || Math.abs(data.y - oldY) > 0.1);
                         
                         // Tell other players about movement
                         broadcast({
@@ -114,7 +121,7 @@ wss.on('connection', (ws) => {
                             playerId: playerId,
                             x: data.x,
                             y: data.y,
-                            isMoving: data.isMoving || false,
+                            isMoving: actuallyMoving, // Use actual movement detection
                             facingLeft: data.facingLeft || false
                         }, playerId);
                     }
